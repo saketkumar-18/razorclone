@@ -1,6 +1,14 @@
 import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
 import { initStore, run, get, all, USE_PG } from "./store";
 import { getMerchant, getApiKey, genId, now } from "./db";
+import { PSP_MODE, RAZORPAY_KEY_ID } from "./config";
+import {
+  createRzpOrder,
+  getRzpOrder,
+  getRzpPayment,
+  captureRzpPayment,
+  createRzpRefund,
+} from "./razorpay";
 import {
   TEST_CARDS,
   NETBANKING_BANKS,
@@ -20,6 +28,8 @@ export {
   PAYMENT_METHODS,
   type PaymentMethod,
   USE_PG,
+  PSP_MODE,
+  RAZORPAY_KEY_ID,
 };
 
 // ---- ID formats observed on the real product ----
@@ -67,7 +77,9 @@ export function verifySignature(payload: string, secret: string, signature: stri
   return timingSafeEqual(a, b);
 }
 
-// ---- Order creation (server-side first, per docs) ----
+// ---- Order creation ----
+// Live mode: order is created on Razorpay's side (the licensed PSP) and mirrored locally.
+// Simulator mode: order is created in our local store only.
 export async function createOrder(input: {
   amount: number;
   currency?: string;
@@ -78,10 +90,27 @@ export async function createOrder(input: {
   if (!merchant) throw new Error("no_merchant");
   const t = now();
   const id = orderId();
+  const localNotes = JSON.stringify(input.notes ?? {});
+
+  if (PSP_MODE === "live") {
+    const rzp = await createRzpOrder({
+      amount: input.amount,
+      currency: input.currency,
+      receipt: input.receipt,
+      notes: input.notes,
+    });
+    await run(
+      `INSERT INTO orders (id, merchant_id, amount, currency, receipt, notes, status, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      [rzp.id, merchant.id, rzp.amount, rzp.currency, rzp.receipt ?? input.receipt ?? null, localNotes, rzp.status, t, t]
+    );
+    return getOrder(rzp.id);
+  }
+
   await run(
     `INSERT INTO orders (id, merchant_id, amount, currency, receipt, notes, status, created_at, updated_at)
      VALUES (?,?,?,?,?,?,?,?,?)`,
-    [id, merchant.id, Math.round(input.amount), input.currency ?? "INR", input.receipt ?? null, JSON.stringify(input.notes ?? {}), "created", t, t]
+    [id, merchant.id, Math.round(input.amount), input.currency ?? "INR", input.receipt ?? null, localNotes, "created", t, t]
   );
   return getOrder(id);
 }
@@ -98,7 +127,10 @@ export async function listOrders(limit = 50, offset = 0): Promise<any[]> {
   return rows.map((r) => ({ ...r, notes: JSON.parse(String(r.notes || "{}")) }));
 }
 
-// ---- Payment processing (simulated) ----
+// ---- Payment processing ----
+// Simulator: deterministic mock processing with documented test cards.
+// Live mode: customers pay on Razorpay's hosted checkout (checkout.js); this function
+// is not used for live payments — the webhook receiver syncs real payments instead.
 export async function processPayment(input: {
   order_id: string;
   method: PaymentMethod;
@@ -111,6 +143,10 @@ export async function processPayment(input: {
   description?: string;
   emi_tenure?: number;
 }): Promise<any> {
+  if (PSP_MODE === "live") {
+    return { error: "live_mode_use_razorpay_checkout" };
+  }
+
   const merchant = await getMerchant();
   const order = await getOrder(input.order_id);
   if (!merchant || !order) return { error: "order_not_found" };
@@ -180,7 +216,74 @@ export async function processPayment(input: {
   return getPayment(pid);
 }
 
+// ---- Live-mode helpers ----
+// Sync a real Razorpay payment into the local store (called from the webhook receiver).
+export async function syncRzpPayment(payment: any): Promise<any> {
+  const merchant = await getMerchant();
+  if (!merchant) return null;
+  const orderId = payment.order_id;
+  const t = now();
+  const existing = (await get("SELECT id FROM payments WHERE id = ?", [payment.id])) as any;
+
+  const fee = Number(payment.fee ?? 0);
+  const tax = Number(payment.tax ?? 0);
+  const captured = payment.captured ? 1 : 0;
+  const method = payment.method ?? "unknown";
+  const email = payment.email ?? null;
+  const contact = payment.contact ?? null;
+  const status = payment.status ?? "created";
+
+  if (!existing) {
+    await run(
+      `INSERT INTO payments (id, merchant_id, order_id, amount, currency, status, method, card_last4, email, contact, description, fee, tax, captured, razorpay_signature, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [payment.id, merchant.id, orderId, payment.amount, payment.currency, status, method,
+       payment.card_id ? payment.card_id.slice(-4) : null, email, contact, null, fee, tax, captured,
+       null, payment.created_at * 1000, t]
+    );
+    // auto-create customer
+    if (email) {
+      const existingCust = (await get("SELECT id FROM customers WHERE merchant_id = ? AND email = ?", [merchant.id, email])) as any;
+      if (!existingCust) {
+        await run(
+          "INSERT INTO customers (id, merchant_id, name, email, contact, created_at) VALUES (?,?,?,?,?,?)",
+          [customerId(), merchant.id, null, email, contact, t]
+        );
+      }
+    }
+  } else {
+    await run(
+      "UPDATE payments SET status = ?, captured = ?, fee = ?, tax = ?, updated_at = ? WHERE id = ?",
+      [status, captured, fee, tax, t, payment.id]
+    );
+  }
+
+  // order state
+  if (orderId) {
+    const order = await getOrder(orderId);
+    if (order) {
+      const orderStatus = status === "captured" ? "paid" : status === "authorized" ? "attempted" : status === "failed" ? "attempted" : order.status;
+      await run("UPDATE orders SET status = ?, updated_at = ? WHERE id = ?", [orderStatus, t, orderId]);
+    }
+  }
+
+  // return the local row directly (do NOT call getPayment — that would recurse)
+  const local = await get("SELECT * FROM payments WHERE id = ?", [payment.id]);
+  if (!local) return null;
+  const localRefunds = await all("SELECT * FROM refunds WHERE payment_id = ?", [payment.id]);
+  return { ...local, refunds: localRefunds };
+}
+
+// ---- Capture ----
 export async function capturePayment(paymentId: string): Promise<any> {
+  if (PSP_MODE === "live") {
+    const p = await getRzpPayment(paymentId);
+    if (p.status !== "authorized") return { error: "payment_not_authorized" };
+    const captured = await captureRzpPayment(paymentId, p.amount);
+    await syncRzpPayment(captured);
+    return getPayment(paymentId);
+  }
+
   const row = (await get("SELECT * FROM payments WHERE id = ?", [paymentId])) as any;
   if (!row) return { error: "payment_not_found" };
   if (row.status !== "authorized") return { error: "payment_not_authorized" };
@@ -191,7 +294,26 @@ export async function capturePayment(paymentId: string): Promise<any> {
   return getPayment(paymentId);
 }
 
+// ---- Refunds ----
 export async function createRefund(input: { payment_id: string; amount?: number; speed?: string; notes?: Record<string, unknown> }): Promise<any> {
+  if (PSP_MODE === "live") {
+    const rzp = await createRzpRefund({
+      payment_id: input.payment_id,
+      amount: input.amount,
+      speed: input.speed,
+      notes: input.notes,
+    });
+    const merchant = await getMerchant();
+    const t = now();
+    await run(
+      `INSERT INTO refunds (id, merchant_id, payment_id, amount, currency, status, speed, notes, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      [rzp.id, merchant.id, rzp.payment_id, rzp.amount, rzp.currency, rzp.status, rzp.speed, JSON.stringify(input.notes ?? {}), rzp.created_at * 1000, t]
+    );
+    await run("UPDATE payments SET status = 'refunded', updated_at = ? WHERE id = ?", [t, rzp.payment_id]);
+    return get("SELECT * FROM refunds WHERE id = ?", [rzp.id]);
+  }
+
   const row = (await get("SELECT * FROM payments WHERE id = ?", [input.payment_id])) as any;
   if (!row) return { error: "payment_not_found" };
   const amount = input.amount ?? row.amount;
@@ -210,6 +332,14 @@ export async function createRefund(input: { payment_id: string; amount?: number;
 
 export async function getPayment(id: string): Promise<any> {
   await initStore();
+  if (PSP_MODE === "live") {
+    try {
+      const p = await getRzpPayment(id);
+      await syncRzpPayment(p);
+    } catch {
+      // fall through to local row if the Razorpay fetch fails (e.g. old sim payment)
+    }
+  }
   const row = await get("SELECT * FROM payments WHERE id = ?", [id]);
   if (!row) return null;
   const refunds = await all("SELECT * FROM refunds WHERE payment_id = ?", [id]);
@@ -232,7 +362,7 @@ export async function listCustomers(limit = 100, offset = 0): Promise<any[]> {
   return all("SELECT * FROM customers ORDER BY created_at DESC LIMIT ? OFFSET ?", [limit, offset]);
 }
 
-// ---- Webhook simulation ----
+// ---- Webhook simulation (local events log; live mode uses Razorpay's own webhooks) ----
 export async function fireWebhook(event: string, entity: Record<string, unknown>): Promise<void> {
   const merchant = await getMerchant();
   const key = await getApiKey();

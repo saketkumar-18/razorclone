@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processPayment, getOrder } from "@/lib/gateway";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
-// POST /api/checkout — invoked by the hosted checkout page to process a payment
+// POST /api/checkout — invoked by the hosted checkout page to process a payment (simulator mode)
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(clientIp(req));
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "rate_limit_exceeded", retry_after: rl.retryAfter },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
   try {
     const body = await req.json();
     const order = body?.order_id ? await getOrder(body.order_id) : null;

@@ -8,7 +8,7 @@ const usePg = !!process.env.DATABASE_URL;
 export const USE_PG = usePg;
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DATA_DIR, "razorpay-clone.db");
+const DB_PATH = process.env.RZP_DB_PATH || path.join(DATA_DIR, "razorpay-clone.db");
 
 type Row = Record<string, unknown>;
 
@@ -108,8 +108,10 @@ async function schema(): Promise<void> {
     }
   } else {
     const db = await getSqlite();
-    db.exec("PRAGMA journal_mode = WAL;");
-    db.exec("PRAGMA foreign_keys = ON;");
+    if (process.env.RZP_DB_WAL !== "off") {
+      try { db.exec("PRAGMA journal_mode = WAL;"); } catch { /* ignore */ }
+    }
+    try { db.exec("PRAGMA foreign_keys = ON;"); } catch { /* ignore */ }
     db.exec(SCHEMA);
   }
 }

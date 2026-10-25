@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+// The landing "try a payment" button. Creates the demo order server-side
+// (no API keys needed on the public marketing page) and opens the hosted checkout.
 export function TryPayment() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -10,16 +12,7 @@ export function TryPayment() {
   async function start() {
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: 49900,
-          currency: "INR",
-          receipt: "rcpt_" + Date.now(),
-          notes: { source: "landing-demo" },
-        }),
-      });
+      const res = await fetch("/api/demo-order", { method: "POST" });
       const order = await res.json();
       if (order.id) {
         router.push(`/checkout/${order.id}`);

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySignature, getApiKey } from "@/lib/gateway";
+import { requireAuth } from "@/lib/auth";
 
 // POST /api/v1/utils/verify-signature — documented signature check
 // payload = "order_id|payment_id" | "payment_id|refund_id" etc.
 export async function POST(req: NextRequest) {
+  const authError = await requireAuth(req);
+  if (authError) return authError;
   try {
     const body = await req.json();
     const { payload, signature } = body ?? {};

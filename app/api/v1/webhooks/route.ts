@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listWebhookEvents, getApiKey, generateSignature } from "@/lib/gateway";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
+  const authError = await requireAuth(req);
+  if (authError) return authError;
   const sp = req.nextUrl.searchParams;
   const limit = Number(sp.get("limit") ?? 50);
   const items = await listWebhookEvents(limit);
   return NextResponse.json({ items, count: items.length });
 }
 
-// POST /api/v1/webhooks/verify — verify an incoming webhook signature the way a merchant server would
+// POST /api/v1/webhooks — verify an incoming webhook signature the way a merchant server would
 export async function POST(req: NextRequest) {
+  const authError = await requireAuth(req);
+  if (authError) return authError;
   try {
     const body = await req.json();
     const { payload, signature } = body ?? {};
