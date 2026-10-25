@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getMerchant } from "@/lib/gateway";
+import { isAuthed } from "@/lib/session";
 
 export const revalidate = 0;
 
@@ -15,6 +17,9 @@ const NAV = [
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const authed = await isAuthed();
+  if (!authed) redirect("/dashboard/login");
+
   const merchant = await getMerchant();
 
   return (
@@ -40,6 +45,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> test mode
           </span>
           <div className="mt-2 mono">acct: {merchant?.id.slice(0, 16)}…</div>
+          <form action="/api/dashboard/logout" method="post" className="mt-3">
+            <button type="submit" className="text-[11px] font-semibold hover:underline" style={{ color: "#768ea7" }}>
+              Sign out →
+            </button>
+          </form>
         </div>
       </aside>
 
