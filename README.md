@@ -53,6 +53,60 @@ curl -X POST https://razorclone.vercel.app/api/v1/utils/verify-signature \
 **Remember:** without Razorpay keys configured this is a simulator — payments are mock,
 customers are never charged. Add your real keys to take live payments (below).
 
+## Connect your app — free, no charges to anyone
+
+If you don't want to charge anyone (demo apps, prototypes, internal tools, college
+projects), you're done — **stay in simulator mode**. It is 100% free, needs no
+Razorpay account, no KYC, no fees, and your apps integrate exactly like the real thing.
+
+Your API credentials are on the dashboard (https://razorclone.vercel.app/dashboard →
+**API Keys**; password = `DASHBOARD_PASSWORD`, see `C:/Users/devil/Documents/razorpay-clone-deploy-secrets.txt`).
+
+**Ready-to-run example clients** (copy into your app):
+
+```bash
+# Node.js
+BASE_URL=https://razorclone.vercel.app KEY_ID=<your_key_id> KEY_SECRET=<your_key_secret> \
+  node examples/integrate-node.mjs
+
+# Python
+BASE_URL=https://razorclone.vercel.app KEY_ID=<your_key_id> KEY_SECRET=<your_key_secret> \
+  python3 examples/integrate-python.py
+```
+
+The 4-step flow every app uses (create order → hosted checkout → verify → capture/refund):
+
+```bash
+# 1. create an order (Basic auth = key_id:key_secret)
+curl -X POST https://razorclone.vercel.app/api/v1/orders \
+  -u <key_id>:<key_secret> -H "Content-Type: application/json" \
+  -d '{"amount": 49900, "currency": "INR", "receipt": "rcpt_001", "notes": {"order": "from-my-app"}}'
+
+# 2. redirect your customer to:
+#    https://razorclone.vercel.app/checkout/<order_id>
+
+# 3. after payment, verify server-side before fulfilling:
+curl -X POST https://razorclone.vercel.app/api/v1/utils/verify-signature \
+  -u <key_id>:<key_secret> -H "Content-Type: application/json" \
+  -d '{"payload": "<order_id>|<payment_id>", "signature": "<razorpay_signature>"}'
+# → {"valid":true}
+
+# 4. capture / refund
+curl -X POST https://razorclone.vercel.app/api/v1/payments/<payment_id>/capture -u <key_id>:<key_secret>
+curl -X POST https://razorclone.vercel.app/api/v1/refunds \
+  -u <key_id>:<key_secret> -H "Content-Type: application/json" \
+  -d '{"payment_id": "<payment_id>", "amount": 24950}'
+```
+
+Test cards (from Razorpay's docs, work in simulator mode): Visa `4100 2800 0000 1007`,
+Mastercard `5555 5100 0008 1006`, RuPay `6527 6589 0000 1005`, Amex `3402 560004 01007`.
+Cards starting `4000 0000 0000` simulate a decline. UPI IDs starting `fail@` simulate failure.
+
+> **Dashboard password:** the merchant dashboard is now protected. The password is in
+> `razorpay-clone-deploy-secrets.txt` (outside the repo) as `DASHBOARD_PASSWORD`.
+> The public pages (home, checkout) and the payment API still need no login — only the
+> dashboard (which shows your API keys) is gated.
+
 ## Going live with real payments (Razorpay)
 
 This gateway proxies to **Razorpay's licensed infrastructure** when you configure your
