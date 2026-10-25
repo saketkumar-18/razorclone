@@ -2,8 +2,8 @@ import { getMerchant } from "@/lib/gateway";
 
 export const revalidate = 0;
 
-export default function SettingsPage() {
-  const m = getMerchant();
+export default async function SettingsPage() {
+  const m = await getMerchant();
 
   return (
     <div className="p-8 max-w-3xl">

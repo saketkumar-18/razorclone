@@ -10,7 +10,8 @@ export default async function OrdersPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status } = await searchParams;
-  let items = listOrders(200) as any[];
+  const all = await listOrders(200);
+  let items = all as any[];
   if (status && status !== "all") items = items.filter((o) => o.status === status);
 
   const filters = [

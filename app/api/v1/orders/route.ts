@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createOrder, listOrders, getOrder } from "@/lib/gateway";
+import { createOrder, listOrders } from "@/lib/gateway";
 
 // POST /api/v1/orders — create an order server-side (documented contract)
 export async function POST(req: NextRequest) {
@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     if (!body || typeof body.amount !== "number" || body.amount <= 0) {
       return NextResponse.json({ error: "amount must be a positive integer (smallest currency unit)" }, { status: 400 });
     }
-    const order = createOrder({
+    const order = await createOrder({
       amount: body.amount,
       currency: body.currency,
       receipt: body.receipt,
@@ -25,5 +25,6 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const limit = Number(sp.get("limit") ?? 50);
   const offset = Number(sp.get("offset") ?? 0);
-  return NextResponse.json({ items: listOrders(limit, offset), count: listOrders(limit, offset).length });
+  const items = await listOrders(limit, offset);
+  return NextResponse.json({ items, count: items.length });
 }

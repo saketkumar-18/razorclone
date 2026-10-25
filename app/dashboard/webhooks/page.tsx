@@ -4,8 +4,7 @@ import { fmtDate } from "@/lib/format";
 export const revalidate = 0;
 
 export default async function WebhooksPage() {
-  const events = listWebhookEvents(100) as any[];
-  const key = getApiKey();
+  const [events, key] = await Promise.all([listWebhookEvents(100), getApiKey()]);
 
   return (
     <div className="p-8 max-w-6xl">
@@ -24,7 +23,7 @@ valid   = timingSafeEqual(expected, signature)`}
         </pre>
         <p className="text-xs mt-3" style={{ color: "var(--rzp-slate)" }}>
           Try it live:{" "}
-          <span className="mono">POST /api/v1/webhooks/verify</span> with{" "}
+          <span className="mono">POST /api/v1/webhooks</span> with{" "}
           <span className="mono">{"{payload, signature}"}</span> from any event below.
         </p>
       </div>

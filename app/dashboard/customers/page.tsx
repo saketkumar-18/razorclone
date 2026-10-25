@@ -4,8 +4,7 @@ import { fmtDate } from "@/lib/format";
 export const revalidate = 0;
 
 export default async function CustomersPage() {
-  const customers = listCustomers(200) as any[];
-  const payments = listPayments(2000) as any[];
+  const [customers, payments] = await Promise.all([listCustomers(200), listPayments(2000)]);
   const byEmail = new Map<string, any[]>();
   for (const p of payments) {
     if (!p.email) continue;

@@ -3,8 +3,8 @@ import { ApiKeyCard } from "./api-key-card";
 
 export const revalidate = 0;
 
-export default function ApiKeysPage() {
-  const key = getApiKey();
+export default async function ApiKeysPage() {
+  const key = await getApiKey();
 
   return (
     <div className="p-8 max-w-4xl">

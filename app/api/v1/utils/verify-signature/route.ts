@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     if (!payload || !signature) {
       return NextResponse.json({ error: "payload and signature are required" }, { status: 400 });
     }
-    const key = getApiKey();
+    const key = await getApiKey();
     if (!key) return NextResponse.json({ error: "no_api_key" }, { status: 500 });
     const valid = verifySignature(String(payload), key.key_secret, String(signature));
     return NextResponse.json({ valid });

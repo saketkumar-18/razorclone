@@ -5,9 +5,9 @@ import { processPayment, getOrder } from "@/lib/gateway";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const order = body?.order_id ? getOrder(body.order_id) : null;
+    const order = body?.order_id ? await getOrder(body.order_id) : null;
     if (!order) return NextResponse.json({ error: "order_not_found" }, { status: 404 });
-    const res = processPayment({
+    const res = await processPayment({
       order_id: body.order_id,
       method: body.method ?? "card",
       card: body.card,

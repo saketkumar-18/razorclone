@@ -11,7 +11,8 @@ export default async function PaymentsPage({
   searchParams: Promise<{ q?: string; status?: string }>;
 }) {
   const { q, status } = await searchParams;
-  let items = listPayments(200) as any[];
+  const all = await listPayments(200);
+  let items = all as any[];
 
   if (status && status !== "all") items = items.filter((p) => p.status === status);
   if (q) {

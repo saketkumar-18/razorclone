@@ -4,9 +4,8 @@ import { TryPayment } from "./try-payment";
 
 export const revalidate = 0;
 
-export default function Home() {
-  const merchant = getMerchant();
-  const key = getApiKey();
+export default async function Home() {
+  const [merchant, key] = await Promise.all([getMerchant(), getApiKey()]);
 
   return (
     <div className="min-h-screen" style={{ background: "var(--rzp-navy-deep)", color: "#fff" }}>
@@ -123,15 +122,15 @@ export default function Home() {
           </div>
           <pre className="p-5 text-sm leading-relaxed overflow-x-auto mono" style={{ color: "#c9d8e8" }}>
 {`# 1. Create an order (server-side)
-curl -X POST http://localhost:3000/api/v1/orders \\
+curl -X POST {YOUR_DEPLOYED_URL}/api/v1/orders \\
   -H "Content-Type: application/json" \\
   -d '{"amount": 49900, "currency": "INR", "receipt": "rcpt_001"}'
 
 # 2. Open the hosted checkout
-#    → http://localhost:3000/checkout/{order_id}
+#    → {YOUR_DEPLOYED_URL}/checkout/{order_id}
 
 # 3. After payment, verify the signature server-side
-curl -X POST http://localhost:3000/api/v1/utils/verify-signature \\
+curl -X POST {YOUR_DEPLOYED_URL}/api/v1/utils/verify-signature \\
   -H "Content-Type: application/json" \\
   -d '{"payload": "{order_id}|{payment_id}", "signature": "{razorpay_signature}"}'`}
           </pre>

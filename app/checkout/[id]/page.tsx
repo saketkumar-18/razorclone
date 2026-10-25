@@ -10,9 +10,8 @@ export default async function CheckoutPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const order = getOrder(id);
+  const [order, merchant] = await Promise.all([getOrder(id), getMerchant()]);
   if (!order) notFound();
-  const merchant = getMerchant();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10" style={{ background: "#eef2f7" }}>

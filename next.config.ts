@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // DB-backed dynamic app: every page reads SQLite, so no static caching.
+  // DB-backed dynamic app: every page reads the store, so no static caching.
+  // pg uses optional native deps + dynamic requires — keep it external on serverless.
+  serverExternalPackages: ["pg"],
   turbopack: {
     rules: {
       "*.css": {

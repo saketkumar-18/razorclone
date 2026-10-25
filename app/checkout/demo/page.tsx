@@ -4,7 +4,7 @@ import { createOrder } from "@/lib/gateway";
 export const revalidate = 0;
 
 export default async function DemoCheckoutPage() {
-  const order = createOrder({
+  const order = await createOrder({
     amount: 49900,
     currency: "INR",
     receipt: "rcpt_demo_" + Date.now(),

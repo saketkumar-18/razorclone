@@ -5,17 +5,19 @@ import { StatusBadge } from "../status-badge";
 
 export const revalidate = 0;
 
-export default function OverviewPage() {
-  const merchant = getMerchant();
-  const payments = listPayments(100) as any[];
-  const orders = listOrders(100) as any[];
-  const customers = listCustomers(100) as any[];
+export default async function OverviewPage() {
+  const [merchant, payments, orders, customers, refunds] = await Promise.all([
+    getMerchant(),
+    listPayments(100),
+    listOrders(100),
+    listCustomers(100),
+    listRefunds(1000),
+  ]);
 
   const captured = payments.filter((p) => p.status === "captured" || p.status === "refunded");
   const totalVolume = captured.reduce((s, p) => s + Number(p.amount), 0);
   const fees = captured.reduce((s, p) => s + Number(p.fee), 0);
-  const refunded = listRefunds(1000) as any[];
-  const totalRefunds = refunded.reduce((s, r) => s + Number(r.amount), 0);
+  const totalRefunds = refunds.reduce((s, r) => s + Number(r.amount), 0);
   const successRate = payments.length ? Math.round((captured.length / payments.length) * 100) : 0;
 
   // last 7 days volume

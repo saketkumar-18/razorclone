@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     if (!body?.payment_id) {
       return NextResponse.json({ error: "payment_id is required" }, { status: 400 });
     }
-    const res = createRefund({
+    const res = await createRefund({
       payment_id: body.payment_id,
       amount: body.amount,
       speed: body.speed,
@@ -21,5 +21,6 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({ items: listRefunds() });
+  const items = await listRefunds();
+  return NextResponse.json({ items });
 }

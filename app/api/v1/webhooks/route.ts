@@ -4,7 +4,7 @@ import { listWebhookEvents, getApiKey, generateSignature } from "@/lib/gateway";
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const limit = Number(sp.get("limit") ?? 50);
-  const items = listWebhookEvents(limit);
+  const items = await listWebhookEvents(limit);
   return NextResponse.json({ items, count: items.length });
 }
 
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { payload, signature } = body ?? {};
-    const key = getApiKey();
+    const key = await getApiKey();
     if (!key) return NextResponse.json({ error: "no_api_key" }, { status: 500 });
     const expected = generateSignature(String(payload ?? ""), key.key_secret);
     const ok = expected === String(signature ?? "");

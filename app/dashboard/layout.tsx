@@ -15,7 +15,7 @@ const NAV = [
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const merchant = getMerchant();
+  const merchant = await getMerchant();
 
   return (
     <div className="flex min-h-screen">
@@ -51,7 +51,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   );
 }
 
-async function NavLink({ href, label, icon }: { href: string; label: string; icon: string }) {
+function NavLink({ href, label, icon }: { href: string; label: string; icon: string }) {
   return (
     <Link href={href} className="sidebar-link">
       <span className="w-5 text-center" style={{ fontSize: 14 }}>{icon}</span>

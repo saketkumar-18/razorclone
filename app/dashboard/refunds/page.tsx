@@ -5,8 +5,7 @@ import { StatusBadge } from "../../status-badge";
 export const revalidate = 0;
 
 export default async function RefundsPage() {
-  const refunds = listRefunds(200) as any[];
-  const payments = listPayments(200) as any[];
+  const [refunds, payments] = await Promise.all([listRefunds(200), listPayments(200)]);
   const byId = new Map(payments.map((p) => [p.id, p]));
   const total = refunds.reduce((s, r) => s + Number(r.amount), 0);
 
