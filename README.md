@@ -50,8 +50,72 @@ curl -X POST https://razorclone.vercel.app/api/v1/utils/verify-signature \
 # → {"valid":true}
 ```
 
-**Remember:** this is a simulator. Payments are mock — customers are never charged,
-test cards only. Treat it as your test-mode gateway, not a live payment processor.
+**Remember:** without Razorpay keys configured this is a simulator — payments are mock,
+customers are never charged. Add your real keys to take live payments (below).
+
+## Going live with real payments (Razorpay)
+
+This gateway proxies to **Razorpay's licensed infrastructure** when you configure your
+keys. Card data goes straight to Razorpay's hosted checkout — it never touches this
+server, so there's no PCI burden on your side. Settlements land in **your** Razorpay
+merchant account.
+
+### 1. Get keys (free)
+
+1. Sign up at https://dashboard.razorpay.com (email + OTP; ~2 min).
+2. You'll get **test mode keys** immediately: `rzp_test_...` (Key ID) and Key Secret.
+   Test keys let you run the whole flow with test cards before going live.
+3. For **live payments**, complete KYC in the dashboard (business details + bank
+   account for settlements). Razorpay then issues `rzp_live_...` keys.
+
+### 2. Configure (Vercel)
+
+```bash
+vercel env add RAZORPAY_KEY_ID production
+vercel env add RAZORPAY_KEY_SECRET production
+vercel env add RAZORPAY_WEBHOOK_SECRET production
+vercel deploy --prod
+```
+
+- `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` — your Razorpay keys. The moment both are
+  set, the gateway switches from simulator to **live mode**: orders are created on
+  Razorpay, the checkout page opens Razorpay's hosted payment page, and webhooks drive
+  the dashboard.
+- `RAZORPAY_WEBHOOK_SECRET` — generate one in Razorpay Dashboard → Settings → Webhooks,
+  and set the webhook URL to `https://razorclone.vercel.app/api/webhooks/rzp` with
+  events: `payment.authorized`, `payment.captured`, `payment.failed`,
+  `refund.processed`. Every webhook is HMAC-verified before we touch state.
+- `ALLOWED_ORIGINS` (optional) — comma-separated origins allowed to call the API from
+  browsers. Default `*`; set it to your app's origin(s) for production.
+
+### 3. Integrate your app
+
+```bash
+# 1. your backend creates an order (Basic auth = key_id:key_secret, like real Razorpay)
+curl -X POST https://razorclone.vercel.app/api/v1/orders \
+  -u rzp_test_XXXX:your_key_secret \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 49900, "currency": "INR", "receipt": "rcpt_001", "notes": {"order_id": "from-my-app"}}'
+
+# 2. redirect your customer to the hosted checkout
+#    https://razorclone.vercel.app/checkout/{order_id}
+
+# 3. after payment, verify server-side before fulfilling (never trust the client alone)
+curl -X POST https://razorclone.vercel.app/api/v1/utils/verify-signature \
+  -u rzp_test_XXXX:your_key_secret \
+  -H "Content-Type: application/json" \
+  -d '{"payload": "{order_id}|{payment_id}", "signature": "{razorpay_signature}"}'
+# → {"valid":true}
+
+# 4. refunds, captures, lists — all under /api/v1 with the same Basic auth
+curl -X POST https://razorclone.vercel.app/api/v1/refunds \
+  -u rzp_test_XXXX:your_key_secret \
+  -H "Content-Type: application/json" \
+  -d '{"payment_id": "pay_XXXX", "amount": 24950}'
+```
+
+All `/api/v1/*` endpoints require Basic auth (your key id + key secret). Public pages
+(checkout, dashboard) need no auth.
 
 ## What it recreates (observed evidence → clone)
 
