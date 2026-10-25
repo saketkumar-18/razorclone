@@ -135,10 +135,19 @@ vercel deploy --prod
   set, the gateway switches from simulator to **live mode**: orders are created on
   Razorpay, the checkout page opens Razorpay's hosted payment page, and webhooks drive
   the dashboard.
-- `RAZORPAY_WEBHOOK_SECRET` — generate one in Razorpay Dashboard → Settings → Webhooks,
-  and set the webhook URL to `https://razorclone.vercel.app/api/webhooks/rzp` with
-  events: `payment.authorized`, `payment.captured`, `payment.failed`,
-  `refund.processed`. Every webhook is HMAC-verified before we touch state.
+- `RAZORPAY_WEBHOOK_SECRET` — any long random string you choose (e.g. `openssl rand -hex 24`).
+  Register the webhook **automatically via Razorpay's API** (no dashboard clicking):
+
+```bash
+RAZORPAY_KEY_ID=<key_id> RAZORPAY_KEY_SECRET=<key_secret> \
+RAZORPAY_WEBHOOK_SECRET=<your_wh_secret> \
+node scripts/register-webhook.mjs
+```
+
+  or set it manually in Razorpay Dashboard → Settings → Webhooks:
+  URL `https://razorclone.vercel.app/api/webhooks/rzp`, events `payment.authorized`,
+  `payment.captured`, `payment.failed`, `refund.processed`. Every webhook is
+  HMAC-verified before we touch state.
 - `ALLOWED_ORIGINS` (optional) — comma-separated origins allowed to call the API from
   browsers. Default `*`; set it to your app's origin(s) for production.
 
