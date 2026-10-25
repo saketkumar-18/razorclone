@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+:root {
+  --rzp-navy: #192839;
+  --rzp-navy-deep: #101d2b;
+  --rzp-blue: #305eff;
+  --rzp-blue-light: #75a3ff;
+  --rzp-red: #f0263c;
+  --rzp-slate: #768ea7;
+  --rzp-light: #f8fafc;
+  --rzp-border: #dfe3e9;
+  --rzp-green: #16a34a;
+  --rzp-amber: #f59e0b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--rzp-light);
+  color: var(--rzp-navy);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* shared utility classes */
+.rzp-btn-primary {
+  background: var(--rzp-blue);
+  color: #fff;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+.rzp-btn-primary:hover { opacity: 0.9; }
+.rzp-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.rzp-card {
+  background: #fff;
+  border: 1px solid var(--rzp-border);
+  border-radius: 12px;
+}
+
+.rzp-input {
+  border: 1px solid var(--rzp-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  background: #fff;
+  color: var(--rzp-navy);
+}
+.rzp-input:focus {
+  border-color: var(--rzp-blue);
+  box-shadow: 0 0 0 3px rgba(48, 94, 255, 0.12);
+}
+
+.rzp-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--rzp-slate);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--rzp-border);
+  white-space: nowrap;
+}
+.rzp-table td {
+  padding: 12px 16px;
+  font-size: 14px;
+  border-bottom: 1px solid #eef1f5;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.badge-captured, .badge-paid, .badge-processed { background: #ecfdf3; color: #067647; }
+.badge-authorized, .badge-created, .badge-attempted, .badge-pending { background: #eef4ff; color: #175cd3; }
+.badge-failed { background: #fef3f2; color: #b42318; }
+.badge-refunded { background: #fffaeb; color: #b54708; }
+
+.mono { font-family: var(--font-geist-mono), ui-monospace, monospace; }
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.62);
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-link:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.sidebar-link.active {
+  background: rgba(48, 94, 255, 0.18);
+  color: #fff;
+}
