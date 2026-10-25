@@ -31,3 +31,10 @@ next-env.d.ts
 
 # local database (simulator state)
 /data/
+
+.vercel
+.env*
+
+# vercel neon integration agent skills
+/.agents/
+skills-lock.json

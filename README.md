@@ -23,6 +23,36 @@ npm run start -- -p 3000
 Open http://localhost:3000. The DB seeds itself with a demo merchant, test API keys,
 and ~28 payments on first boot.
 
+## Live (deployed)
+
+- **https://razorclone.vercel.app** — free Vercel (Hobby) + Neon Postgres
+- Postgres backend is used automatically when `DATABASE_URL` is set; otherwise the app
+  falls back to local `node:sqlite` for development.
+- Free-tier notes: serverless cold starts on first request after idle; the Neon free
+  database persists your orders/payments across deploys.
+
+### Using it as a payment gateway in your own app
+
+```bash
+# 1. Create an order from your backend
+curl -X POST https://razorclone.vercel.app/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 49900, "currency": "INR", "receipt": "rcpt_001", "notes": {"order": "from-my-app"}}'
+# → {"id":"order_...","status":"created",...}
+
+# 2. Redirect your customer to the hosted checkout
+#    https://razorclone.vercel.app/checkout/{order_id}
+
+# 3. After payment, verify the signature server-side (never trust the client alone)
+curl -X POST https://razorclone.vercel.app/api/v1/utils/verify-signature \
+  -H "Content-Type: application/json" \
+  -d '{"payload": "{order_id}|{payment_id}", "signature": "{razorpay_signature}"}'
+# → {"valid":true}
+```
+
+**Remember:** this is a simulator. Payments are mock — customers are never charged,
+test cards only. Treat it as your test-mode gateway, not a live payment processor.
+
 ## What it recreates (observed evidence → clone)
 
 | Observed (real Razorpay docs/site) | Recreated here |
